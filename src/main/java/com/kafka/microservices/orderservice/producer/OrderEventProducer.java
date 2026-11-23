@@ -1,4 +1,3 @@
-
 package com.kafka.microservices.orderservice.producer;
 
 import com.kafka.microservices.orderservice.dto.OrderCreatedEvent;
@@ -18,7 +17,7 @@ public class OrderEventProducer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void publishOrderCreatedEvent(OrderCreatedEvent orderCreatedEvent){
+    public void publishOrderCreatedEvent(OrderCreatedEvent orderCreatedEvent) {
 
         kafkaTemplate.send(TOPIC, orderCreatedEvent.orderId().toString(), orderCreatedEvent)
                 .whenComplete((result, exception)->{

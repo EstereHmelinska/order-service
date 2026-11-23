@@ -1,4 +1,3 @@
-
 package com.kafka.microservices.orderservice.service;
 
 import com.kafka.microservices.orderservice.dto.CreateOrderRequest;
@@ -14,6 +13,7 @@ import java.util.UUID;
 
 @Service
 public class OrderService {
+
     private static final Logger log = LoggerFactory.getLogger(OrderService.class);
     private final OrderEventProducer orderEventProducer;
 

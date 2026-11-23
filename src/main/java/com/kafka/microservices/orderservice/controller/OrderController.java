@@ -1,4 +1,3 @@
-
 package com.kafka.microservices.orderservice.controller;
 
 import com.kafka.microservices.orderservice.dto.CreateOrderRequest;
@@ -25,7 +24,7 @@ public class OrderController {
     }
 
     @PostMapping("/orders")
-    public ResponseEntity<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest request){
+    public ResponseEntity<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
         CreateOrderResponse response = orderService.createOrder(request);
         log.info("Returning response for order with id: {}", response.orderId());
         return new ResponseEntity<>(response, HttpStatus.CREATED);
