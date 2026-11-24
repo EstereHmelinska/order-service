@@ -2,6 +2,7 @@ package com.kafka.microservices.orderservice.producer;
 
 import com.kafka.microservices.orderservice.dto.OrderCreatedEvent;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,7 +17,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class OrderEventProducerTest {
@@ -44,14 +47,19 @@ class OrderEventProducerTest {
 
     @Test
     void publishOrderCreatedEvent_shouldSendEventToCorrectTopic() {
-        //Arrange
-        SendResult<String, OrderCreatedEvent> sendResult = mock(SendResult.class);
-        RecordMetadata metadata = mock(RecordMetadata.class);
+        // Arrange
+        RecordMetadata metadata = new RecordMetadata(
+                new TopicPartition(TOPIC, 0),
+                1L,
+                0,
+                System.currentTimeMillis(),
+                0,
+                0
+        );
 
-        when(sendResult.getRecordMetadata()).thenReturn(metadata);
-        when(metadata.topic()).thenReturn(TOPIC);
-        when(metadata.partition()).thenReturn(0);
-        when(metadata.offset()).thenReturn(1L);
+        SendResult<String, OrderCreatedEvent> sendResult =
+                new SendResult<>(null, metadata);
+
         when(kafkaTemplate.send(TOPIC, event.orderId().toString(), event))
                 .thenReturn(CompletableFuture.completedFuture(sendResult));
 
@@ -68,7 +76,7 @@ class OrderEventProducerTest {
         //Arrange
         CompletableFuture<SendResult<String, OrderCreatedEvent>> failedFuture =
                 CompletableFuture.failedFuture(
-                        new RuntimeException("Kafka publishing failed")
+                        new Exception("Kafka publishing failed")
                 );
 
         when(kafkaTemplate.send(TOPIC, event.orderId().toString(), event))
