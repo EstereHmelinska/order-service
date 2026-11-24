@@ -22,6 +22,10 @@ public class OrderService {
     }
 
     public CreateOrderResponse createOrder(CreateOrderRequest request){
+        if (request.quantity() <= 0 || request.product() == null) {
+            log.warn("Invalid order request received");
+            throw new IllegalArgumentException("Invalid order details");
+        }
         UUID orderId = UUID.randomUUID();
         LocalDateTime createdTime = LocalDateTime.now();
         log.info("Creating a new order for customer with id: {}", request.customerId());
