@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -44,6 +45,18 @@ class OrderServiceTest {
     }
 
     @Test
+    void createOrder_shouldPublishOrderCreatedEvent() {
+        //Arrange
+        //The producer is mocked, so no Kafka broker is needed
+        //Act
+        orderService.createOrder(laptopRequest);
+
+        //Assert
+        verify(orderEventProducer, times(1))
+                .publishOrderCreatedEvent(any(OrderCreatedEvent.class));
+    }
+
+    @Test
     void createOrder_shouldPublishEventWithCorrectDetails() {
         //Arrange
         ArgumentCaptor<OrderCreatedEvent> eventCaptor =
@@ -53,8 +66,7 @@ class OrderServiceTest {
         orderService.createOrder(laptopRequest);
 
         //Assert
-        verify(orderEventProducer, times(1))
-                .publishOrderCreatedEvent(eventCaptor.capture());
+        verify(orderEventProducer).publishOrderCreatedEvent(eventCaptor.capture());
 
         OrderCreatedEvent publishedEvent = eventCaptor.getValue();
 
@@ -80,6 +92,36 @@ class OrderServiceTest {
         );
 
         verify(orderEventProducer, times(1))
+                .publishOrderCreatedEvent(any(OrderCreatedEvent.class));
+    }
+
+    @Test
+    void createOrder_shouldThrowExceptionWhenProductIsNull() {
+        // Arrange
+        CreateOrderRequest invalidRequest =
+                new CreateOrderRequest(customerId, null, quantity);
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class, () ->
+                orderService.createOrder(invalidRequest)
+        );
+
+        verify(orderEventProducer, never())
+                .publishOrderCreatedEvent(any(OrderCreatedEvent.class));
+    }
+
+    @Test
+    void createOrder_shouldThrowExceptionWhenQuantityIsZero() {
+        // Arrange
+        CreateOrderRequest invalidRequest =
+                new CreateOrderRequest(customerId, product, 0);
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class, () ->
+                orderService.createOrder(invalidRequest)
+        );
+
+        verify(orderEventProducer, never())
                 .publishOrderCreatedEvent(any(OrderCreatedEvent.class));
     }
 }

@@ -1,8 +1,10 @@
 package com.kafka.microservices.orderservice.controller;
 
+
 import com.kafka.microservices.orderservice.dto.CreateOrderRequest;
 import com.kafka.microservices.orderservice.dto.CreateOrderResponse;
 import com.kafka.microservices.orderservice.service.OrderService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -24,7 +26,7 @@ public class OrderController {
     }
 
     @PostMapping("/orders")
-    public ResponseEntity<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
+    public ResponseEntity<CreateOrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request){
         CreateOrderResponse response = orderService.createOrder(request);
         log.info("Returning response for order with id: {}", response.orderId());
         return new ResponseEntity<>(response, HttpStatus.CREATED);

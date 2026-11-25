@@ -19,6 +19,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -99,5 +100,45 @@ class OrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(laptopRequest)))
                 .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void createOrder_shouldReturn400WhenProductIsNull() throws Exception {
+        // Arrange
+        String invalidRequest = """
+            {
+                "customerId": 15,
+                "product": null,
+                "quantity": 2
+            }
+            """;
+
+        // Act & Assert
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequest))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).createOrder(any(CreateOrderRequest.class));
+    }
+
+    @Test
+    void createOrder_shouldReturn400WhenQuantityIsZero() throws Exception {
+        // Arrange
+        String invalidRequest = """
+            {
+                "customerId": 15,
+                "product": "Laptop",
+                "quantity": 0
+            }
+            """;
+
+        // Act & Assert
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequest))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).createOrder(any(CreateOrderRequest.class));
     }
 }
