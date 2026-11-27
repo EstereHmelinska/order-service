@@ -6,6 +6,8 @@ import com.kafka.microservices.orderservice.producer.OrderEventProducer;
 import com.kafka.microservices.orderservice.entity.Order;
 import com.kafka.microservices.orderservice.entity.OrderStatus;
 import com.kafka.microservices.orderservice.repository.OrderRepository;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -189,4 +192,56 @@ class OrderServiceTest {
         verify(orderEventProducer, never())
                 .publishOrderCreatedEvent(any(OrderCreatedEvent.class));
     }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"AVAILABLE", "OUT_OF_STOCK"})
+    void updateOrderStatus_shouldUpdateAndSaveOrder(OrderStatus newStatus) {
+        // Arrange
+        UUID orderId = UUID.randomUUID();
+
+        Order order = Order.builder()
+                .id(orderId)
+                .customerId(customerId)
+                .product(product)
+                .quantity(quantity)
+                .status(OrderStatus.NEW)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+
+        // Act
+        orderService.updateOrderStatus(orderId, newStatus);
+
+        // Verify
+        verify(orderRepository).save(orderCaptor.capture());
+
+        Order updatedOrder = orderCaptor.getValue();
+
+        // Assert
+        assertEquals(orderId, updatedOrder.getId());
+        assertEquals(newStatus, updatedOrder.getStatus());
+    }
+
+    @Test
+    void updateOrderStatus_shouldThrowExceptionWhenOrderDoesNotExist() {
+        // Arrange
+        UUID orderId = UUID.randomUUID();
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class, () ->
+                orderService.updateOrderStatus(
+                        orderId,
+                        OrderStatus.AVAILABLE));
+
+        // Verify
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
 }
