@@ -3,6 +3,10 @@ package com.kafka.microservices.orderservice.service;
 import com.kafka.microservices.orderservice.dto.CreateOrderRequest;
 import com.kafka.microservices.orderservice.dto.OrderCreatedEvent;
 import com.kafka.microservices.orderservice.producer.OrderEventProducer;
+import com.kafka.microservices.orderservice.entity.Order;
+import com.kafka.microservices.orderservice.entity.OrderStatus;
+import com.kafka.microservices.orderservice.repository.OrderRepository;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,12 +27,17 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
     @Mock
     private OrderEventProducer orderEventProducer;
+
+    @Mock
+    private OrderRepository orderRepository;
 
     @InjectMocks
     private OrderService orderService;
@@ -120,6 +128,63 @@ class OrderServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 orderService.createOrder(invalidRequest)
         );
+
+        verify(orderEventProducer, never())
+                .publishOrderCreatedEvent(any(OrderCreatedEvent.class));
+    }
+
+    @Test
+    void createOrder_shouldSaveOrderWithCorrectDetails() {
+        // Arrange
+        ArgumentCaptor<Order> orderCaptor =
+                ArgumentCaptor.forClass(Order.class);
+
+        // Act
+        orderService.createOrder(laptopRequest);
+
+        // Verify
+        verify(orderRepository).save(orderCaptor.capture());
+
+        Order savedOrder = orderCaptor.getValue();
+
+        // Assert
+        assertNotNull(savedOrder.getId());
+        assertEquals(customerId, savedOrder.getCustomerId());
+        assertEquals(product, savedOrder.getProduct());
+        assertEquals(quantity, savedOrder.getQuantity());
+        assertEquals(OrderStatus.NEW, savedOrder.getStatus());
+        assertNotNull(savedOrder.getCreatedAt());
+        assertInstanceOf(UUID.class, savedOrder.getId());
+        assertInstanceOf(LocalDateTime.class, savedOrder.getCreatedAt());
+    }
+
+    @Test
+    void createOrder_shouldSaveOrderBeforePublishingEvent() {
+        // Arrange
+        var inOrder = inOrder(orderRepository, orderEventProducer);
+
+        // Act
+        orderService.createOrder(laptopRequest);
+
+        // Verify
+        inOrder.verify(orderRepository).save(any(Order.class));
+        inOrder.verify(orderEventProducer)
+                .publishOrderCreatedEvent(any(OrderCreatedEvent.class));
+    }
+
+    @Test
+    void createOrder_shouldNotPublishEventWhenDatabaseSaveFails() {
+        // Arrange
+        when(orderRepository.save(any(Order.class)))
+                .thenThrow(new DataAccessResourceFailureException(
+                        "Database connection failed"));
+
+        // Act & Assert
+        assertThrows(DataAccessResourceFailureException.class,
+                () -> orderService.createOrder(laptopRequest));
+
+        //Verify
+        verify(orderRepository, times(1)).save(any(Order.class));
 
         verify(orderEventProducer, never())
                 .publishOrderCreatedEvent(any(OrderCreatedEvent.class));

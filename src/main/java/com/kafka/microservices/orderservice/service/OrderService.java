@@ -3,7 +3,10 @@ package com.kafka.microservices.orderservice.service;
 import com.kafka.microservices.orderservice.dto.CreateOrderRequest;
 import com.kafka.microservices.orderservice.dto.CreateOrderResponse;
 import com.kafka.microservices.orderservice.dto.OrderCreatedEvent;
+import com.kafka.microservices.orderservice.entity.Order;
+import com.kafka.microservices.orderservice.entity.OrderStatus;
 import com.kafka.microservices.orderservice.producer.OrderEventProducer;
+import com.kafka.microservices.orderservice.repository.OrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,9 +19,11 @@ public class OrderService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderService.class);
     private final OrderEventProducer orderEventProducer;
+    private final OrderRepository orderRepository;
 
-    public OrderService(OrderEventProducer orderEventProducer) {
+    public OrderService(OrderEventProducer orderEventProducer, OrderRepository orderRepository) {
         this.orderEventProducer = orderEventProducer;
+        this.orderRepository = orderRepository;
     }
 
     public CreateOrderResponse createOrder(CreateOrderRequest request){
@@ -29,6 +34,22 @@ public class OrderService {
         UUID orderId = UUID.randomUUID();
         LocalDateTime createdTime = LocalDateTime.now();
         log.info("Creating a new order for customer with id: {}", request.customerId());
+
+        Order order = Order.builder()
+                .id(orderId)
+                .customerId(request.customerId())
+                .product(request.product())
+                .quantity(request.quantity())
+                .status(OrderStatus.NEW)
+                .createdAt(createdTime)
+                .build();
+
+        // Save the order to MySQL first
+        orderRepository.save(order);
+
+        log.info("Order saved successfully with id: {}", orderId);
+
+        // Publish Kafka event only after successful database save
         OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent(
                 orderId,
                 request.customerId(),
